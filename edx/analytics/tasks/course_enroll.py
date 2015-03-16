@@ -5,6 +5,8 @@ import luigi
 import luigi.s3
 import datetime
 
+from edx.analytics.tasks.database_imports import ImportAuthUserProfileTask
+from edx.analytics.tasks.enrollments import EnrollmentDemographicTask
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
 from edx.analytics.tasks.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin
 from edx.analytics.tasks.pathutil import PathSetTask
@@ -209,22 +211,79 @@ class CourseEnrollmentEventsPerDay(
         super(CourseEnrollmentEventsPerDay, self).run()
 
 
+class RegisteredUserList(EnrollmentDemographicTask):
+    """Creates a file with the numerical id's of each registered user to filter out direct access."""
+
+    """
+    def requires(self):
+        kwargs = {
+            'destination': self.destination,
+            'credentials': self.credentials,
+            'num_mappers': self.num_mappers,
+            'verbose': self.verbose,
+            'import_date': self.import_date,
+            'overwrite': self.overwrite,
+        }
+
+        return ImportAuthUserProfileTask(**kwargs)
+    """
+
+    def output(self):
+        output_name = 'registered_user_id_list/dt={date}'.format(date)
+        return get_target_from_url(url_path_join(self.dest, output_name))
+
+    """
+    def mapper(self):
+        # Output tuple of user_id, nonregistered
+
+    def init_reducer(self):
+        # ???
+
+    def reducer(self):
+        #Only yield user_ids for which nonregistered == 0
+    """
+
+    @property
+    def insert_query(self):
+        return """
+            SELECT
+                au.user_id,
+                au.nonregistered,
+            FROM auth_userprofile au
+            WHERE au.nonregistered = 0
+            """
+
+    @property
+    def table_name(self):
+        return 'registered_users'
+
+    @property
+    def columns(self):
+        return [
+            ('user_id', 'INT'),
+            ('nonregistered', 'INT'),
+        ]
+
+
 class CourseEnrollmentChangesPerDay(
         CourseEnrollmentChangesPerDayMixin,
         BaseCourseEnrollmentTaskDownstreamMixin,
         MapReduceJobTask):
     """Calculates daily changes in enrollment, given per-user net changes by date."""
     def requires(self):
-        return CourseEnrollmentEventsPerDay(
-            mapreduce_engine=self.mapreduce_engine,
-            lib_jar=self.lib_jar,
-            n_reduce_tasks=self.n_reduce_tasks,
-            name=self.name,
-            src=self.src,
-            dest=self.dest,
-            include=self.include,
-            manifest=self.manifest,
-            overwrite=self.overwrite,
+        return (
+            CourseEnrollmentEventsPerDay(
+                mapreduce_engine=self.mapreduce_engine,
+                lib_jar=self.lib_jar,
+                n_reduce_tasks=self.n_reduce_tasks,
+                name=self.name,
+                src=self.src,
+                dest=self.dest,
+                include=self.include,
+                manifest=self.manifest,
+                overwrite=self.overwrite,
+            ),
+            ImportAuthUserTask(**kwargs)
         )
 
     def run(self):
