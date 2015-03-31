@@ -5,7 +5,7 @@ import luigi
 import luigi.s3
 import datetime
 
-from edx.analytics.tasks.database_imports import ImportAuthUserProfileTask
+from edx.analytics.tasks.database_imports import ImportAuthUserProfileTask, ImportIntoHiveTableTask
 from edx.analytics.tasks.enrollments import EnrollmentDemographicTask
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
 from edx.analytics.tasks.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin
@@ -211,47 +211,51 @@ class CourseEnrollmentEventsPerDay(
         super(CourseEnrollmentEventsPerDay, self).run()
 
 
-class RegisteredUserList(EnrollmentDemographicTask):
+class RegisteredUserList(ImportIntoHiveTableTask):
     """Creates a file with the numerical id's of each registered user to filter out direct access."""
 
-    """
+    dest = luigi.Parameter()
+    credentials = luigi.Parameter(
+        default_from_config={'section': 'database-export', 'name': 'credentials'}
+    )
+    num_mappers = luigi.Parameter()
+    verbose = luigi.Parameter()
+    run_date = luigi.Parameter(default=datetime.date.today())
+
     def requires(self):
         kwargs = {
-            'destination': self.destination,
+            'destination': self.dest,
             'credentials': self.credentials,
             'num_mappers': self.num_mappers,
             'verbose': self.verbose,
-            'import_date': self.import_date,
-            'overwrite': self.overwrite,
+            'import_date': self.run_date,
+            'overwrite': True,
         }
 
-        return ImportAuthUserProfileTask(**kwargs)
-    """
+        return ImportAuthUserProfileTask(**kwargs)    
 
-    def output(self):
-        output_name = 'registered_user_id_list/dt={date}'.format(date)
-        return get_target_from_url(url_path_join(self.dest, output_name))
+    def query(self):
+        create_query = textwrap.dedent("""
+            INSERT OVERWRITE TABLE registered_users
+        """)
 
-    """
-    def mapper(self):
-        # Output tuple of user_id, nonregistered
-
-    def init_reducer(self):
-        # ???
-
-    def reducer(self):
-        #Only yield user_ids for which nonregistered == 0
-    """
-
-    @property
-    def insert_query(self):
-        return """
+        filter_query = textwrap.dedent("""
             SELECT
                 au.user_id,
                 au.nonregistered,
             FROM auth_userprofile au
             WHERE au.nonregistered = 0
-            """
+        """)
+
+        query = create_query + filter_query
+
+        log.debug("Executing hive query: " + query)
+
+        return query
+
+    def output(self):
+        output_name = 'registered_user_id_list/dt={date}'.format(date=self.run_date)
+        return get_target_from_url(url_path_join(self.dest, output_name))
 
     @property
     def table_name(self):
@@ -263,6 +267,20 @@ class RegisteredUserList(EnrollmentDemographicTask):
             ('user_id', 'INT'),
             ('nonregistered', 'INT'),
         ]
+
+    @property
+    def table_location(self):
+        output_name = 'registered_users_on_day_{name}/'.format(name=self.name)
+        return url_path_join(self.dest, output_name)
+
+    @property
+    def table_format(self):
+        """Provides structure of Hive external table data."""
+        return "ROW FORMAT DELIMITED FIELDS TERMINATED BY '\\t'"
+
+    @property
+    def partition_date(self):
+        return str(self.run_date)
 
 
 class CourseEnrollmentChangesPerDay(
