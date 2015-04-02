@@ -5,7 +5,7 @@ import luigi
 import luigi.s3
 import datetime
 
-from edx.analytics.tasks.database_imports import ImportAuthUserProfileTask, ImportIntoHiveTableTask
+from edx.analytics.tasks.database_imports import ImportAuthUserProfileTask, ImportAuthUserTask, ImportIntoHiveTableTask
 from edx.analytics.tasks.enrollments import EnrollmentDemographicTask
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
 from edx.analytics.tasks.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin
