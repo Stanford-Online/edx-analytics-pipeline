@@ -280,7 +280,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
 
     @property
     def partition_date(self):
-        return str(self.run_date)
+        return self.run_date
 
 
 class CourseEnrollmentChangesPerDay(
