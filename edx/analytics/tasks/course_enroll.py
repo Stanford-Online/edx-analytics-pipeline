@@ -219,7 +219,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
         default_from_config={'section': 'database-export', 'name': 'credentials'}
     )
     num_mappers = luigi.Parameter()
-    verbose = luigi.Parameter()
+    verbose = luigi.Parameter(default="DEBUG")
     run_date = luigi.Parameter(default=datetime.date.today())
 
     def requires(self):
