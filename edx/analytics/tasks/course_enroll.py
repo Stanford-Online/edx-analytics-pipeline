@@ -227,7 +227,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
         kwargs = {
             'destination': self.dest,
             'credentials': self.credentials,
-            'num_mappers': self.num_mappers,
+            'num_mappers': 1,
             'verbose': self.verbose,
             'import_date': self.run_date,
             'overwrite': True,
