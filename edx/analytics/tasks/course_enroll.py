@@ -29,6 +29,25 @@ ENROLLED = 1
 class CourseEnrollmentEventsPerDayMixin(object):
     """Calculates daily change in enrollment for a user in a course, given raw event log input."""
 
+    def init_mapper(self):
+        self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
+        with self.registered_user_list().open() as registered_user_list:
+            while True:
+                transfer_buffer = registered_user_list.read(1024)
+                if transfer_buffer:
+                    self.temporary_data_file.write(transfer_buffer)
+                else:
+                    break
+        self.temporary_data_file.seek(0)
+
+        self.registered_users = set()
+
+        with open(self.temporary_data_file, 'rb') as registered_user_file:
+            for line in registered_user_file.readlines():
+                self.registered_users.add(int(line))
+
+        log.debug("Stored id's for {} registered users".format(len(self.registered_users)))
+
     def mapper(self, line):
         """
         Generates output values for explicit enrollment events.
@@ -47,7 +66,9 @@ class CourseEnrollmentEventsPerDayMixin(object):
         """
         parsed_tuple_or_none = get_explicit_enrollment_output(line)
         if parsed_tuple_or_none is not None:
-            yield parsed_tuple_or_none
+            user_id = parsed_tuple_or_none[0][1]
+            if user_id in self.registered_users:
+                yield parsed_tuple_or_none
 
     def reducer(self, key, values):
         """
@@ -201,7 +222,16 @@ class CourseEnrollmentEventsPerDay(
     input_format = luigi.Parameter(default_from_config={'section': 'manifest', 'name': 'input_format'})
 
     def requires(self):
-        return PathSetTask(self.src, self.include, self.manifest)
+        kwargs = {
+            'dest': self.dest,
+            'credentials': self.credentials,
+            'num_mappers': self.n_reduce_tasks,
+        }
+
+        return {
+            'log_files': PathSetTask(self.src, self.include, self.manifest),
+            'registered_users': RegisteredUserList(**kwargs)
+        }
 
     def output(self):
         output_name = 'course_enrollment_events_per_day_{name}/dt={date}/'.format(name=self.name, date=self.run_date)
@@ -210,6 +240,10 @@ class CourseEnrollmentEventsPerDay(
     def run(self):
         self.remove_output_on_overwrite()
         super(CourseEnrollmentEventsPerDay, self).run()
+
+    def registered_user_list(self):
+        log.debug('Looking for registered user list in {}'.format(self.input()['registered_users']))
+        return self.input()['registered_users']
 
 
 class RegisteredUserList(ImportIntoHiveTableTask):
@@ -241,9 +275,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
         filter_query = textwrap.dedent("""
             INSERT OVERWRITE TABLE registered_users
             PARTITION (dt='{partition_date}')
-            SELECT
-                au.user_id,
-                au.nonregistered
+            SELECT au.user_id
             FROM auth_userprofile au
             WHERE NOT au.nonregistered;
         """).format(partition_date=self.run_date)
