@@ -236,11 +236,10 @@ class RegisteredUserList(ImportIntoHiveTableTask):
         return ImportAuthUserProfileTask(**kwargs)    
 
     def query(self):
-        create_query = textwrap.dedent("""
-            INSERT OVERWRITE TABLE registered_users
-        """)
+        create_query = super(RegisteredUserList, self).query()
 
         filter_query = textwrap.dedent("""
+            INSERT OVERWRITE TABLE registered_users
             SELECT
                 au.user_id,
                 au.nonregistered
