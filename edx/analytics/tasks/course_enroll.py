@@ -30,6 +30,7 @@ class CourseEnrollmentEventsPerDayMixin(object):
     """Calculates daily change in enrollment for a user in a course, given raw event log input."""
 
     def init_mapper(self):
+        """ Fetches list of registered users' ids from s3 and stores in a set for filtering. """
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
         with self.registered_user_list().open() as registered_user_list:
             while True:
@@ -69,6 +70,13 @@ class CourseEnrollmentEventsPerDayMixin(object):
             user_id = parsed_tuple_or_none[0][1]
             if user_id in self.registered_users:
                 yield parsed_tuple_or_none
+
+    def final_mapper(self):
+        """Clean up after the mapper is done."""
+        del self.registered_users
+        self.temporary_data_file.close()
+
+        return tuple()
 
     def reducer(self, key, values):
         """
@@ -220,11 +228,14 @@ class CourseEnrollmentEventsPerDay(
     """Calculates daily change in enrollment for a user in a course, given raw event log input."""
     # input_format overwrites the default value of none from MapReduceJobTaskMixin
     input_format = luigi.Parameter(default_from_config={'section': 'manifest', 'name': 'input_format'})
+    import_credentials = luigi.Parameter(
+        default_from_config={'section': 'database-import', 'name': 'credentials'}
+    )
 
     def requires(self):
         kwargs = {
             'dest': self.dest,
-            'credentials': self.credentials,
+            'credentials': self.import_credentials,
             'num_mappers': self.n_reduce_tasks,
         }
 
