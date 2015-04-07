@@ -301,7 +301,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
         return query
 
     def output(self):
-        output_name = 'registered_user_id_list/dt={date}'.format(date=self.run_date)
+        output_name = 'registered_users/dt={date}'.format(date=self.run_date)
         return get_target_from_url(url_path_join(self.dest, output_name))
 
     @property
