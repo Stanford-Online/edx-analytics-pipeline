@@ -215,6 +215,9 @@ class BaseCourseEnrollmentTaskDownstreamMixin(OverwriteOutputMixin, MapReduceJob
     include = luigi.Parameter(is_list=True, default=('*',))
     manifest = luigi.Parameter(default=None)
     run_date = luigi.Parameter(default=datetime.date.today())
+    import_credentials = luigi.Parameter(
+        default_from_config={'section': 'database-import', 'name': 'credentials'}
+    )
 
 
 ##################################
