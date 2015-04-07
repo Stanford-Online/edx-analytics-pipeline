@@ -245,7 +245,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
                 au.user_id,
                 au.nonregistered
             FROM auth_userprofile au
-            WHERE au.user_id < 10000;
+            WHERE au.nonregistered = 'false';
         """).format(partition_date=self.run_date)
 
         query = create_query + filter_query
