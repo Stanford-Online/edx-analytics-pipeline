@@ -68,7 +68,7 @@ class ImportIntoHiveTableTask(OverwriteOutputMixin, HiveQueryTask):
         # data.
 
         # Ensure there is exactly one available partition in the
-        # table. Don't keep historical partitions since we don't want
+        # table. Don't keep historical partitions sImportIntoHiveince we don't want
         # to commit to taking snapshots at any regular interval. They
         # will happen when/if they need to happen.  Table snapshots
         # should *not* be used for analyzing trends, instead we should
@@ -264,7 +264,7 @@ class ImportAuthUserProfileTask(ImportMysqlToHiveTableTask):
             ('gender', 'STRING'),
             ('year_of_birth', 'INT'),
             ('level_of_education', 'STRING'),
-            ('nonregistered', 'INT'),
+            ('nonregistered', 'BOOLEAN'),
         ]
 
 
