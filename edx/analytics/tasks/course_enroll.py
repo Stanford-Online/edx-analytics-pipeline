@@ -271,7 +271,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
 
     @property
     def table_location(self):
-        output_name = 'registered_users_{date}/'.format(date=self.run_date)
+        output_name = 'registered_users/'
         return url_path_join(self.dest, output_name)
 
     @property
