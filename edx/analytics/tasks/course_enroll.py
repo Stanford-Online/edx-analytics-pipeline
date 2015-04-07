@@ -227,7 +227,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
         kwargs = {
             'destination': self.dest,
             'credentials': self.credentials,
-            'num_mappers': 1,
+            'num_mappers': self.num_mappers,
             'verbose': self.verbose,
             'import_date': self.run_date,
             'overwrite': True,
@@ -243,9 +243,9 @@ class RegisteredUserList(ImportIntoHiveTableTask):
         filter_query = textwrap.dedent("""
             SELECT
                 au.user_id,
-                au.nonregistered,
+                au.nonregistered
             FROM auth_userprofile au
-            WHERE au.nonregistered = 0
+            WHERE au.nonregistered = 0;
         """)
 
         query = create_query + filter_query
