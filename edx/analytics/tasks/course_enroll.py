@@ -311,8 +311,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
     @property
     def columns(self):
         return [
-            ('user_id', 'INT'),
-            ('nonregistered', 'INT'),
+            ('user_id', 'INT')
         ]
 
     @property
