@@ -240,12 +240,13 @@ class RegisteredUserList(ImportIntoHiveTableTask):
 
         filter_query = textwrap.dedent("""
             INSERT OVERWRITE TABLE registered_users
+            PARTITION (dt='{partition_date}')
             SELECT
                 au.user_id,
                 au.nonregistered
             FROM auth_userprofile au
             WHERE au.nonregistered = 0;
-        """)
+        """).format(partition_date=self.run_date)
 
         query = create_query + filter_query
 
