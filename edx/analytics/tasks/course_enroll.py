@@ -4,6 +4,7 @@ Luigi tasks for extracting course enrollment statistics from tracking log files.
 import luigi
 import luigi.s3
 import datetime
+import tempfile
 import textwrap
 
 from edx.analytics.tasks.database_imports import ImportAuthUserProfileTask, ImportIntoHiveTableTask
