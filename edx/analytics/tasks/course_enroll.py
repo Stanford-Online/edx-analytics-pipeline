@@ -33,6 +33,9 @@ class CourseEnrollmentEventsPerDayMixin(object):
     def init_mapper(self):
         """ Fetches list of registered users' ids from s3 and stores in a set for filtering. """
         log.debug('Attempting to fetch registered user list from %s', str(self.registered_user_list()))
+        log.error('registered user list location: %s', str(self.registered_user_list()))
+        log.info('registered user list location: %s', str(self.registered_user_list()))
+
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
 
         with self.registered_user_list().open() as registered_user_list:
@@ -240,7 +243,7 @@ class CourseEnrollmentEventsPerDay(
 
     def requires(self):
         kwargs = {
-            'dest': self.dest + 'registered_user_list/',
+            'dest': self.dest,
             'credentials': self.import_credentials,
             'num_mappers': self.n_reduce_tasks,
         }
