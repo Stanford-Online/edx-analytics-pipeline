@@ -32,6 +32,7 @@ class CourseEnrollmentEventsPerDayMixin(object):
 
     def init_mapper(self):
         """ Fetches list of registered users' ids from s3 and stores in a set for filtering. """
+        print 'registered user list location: ' + str(self.registered_user_list())
         log.debug('Attempting to fetch registered user list from %s', str(self.registered_user_list()))
         log.error('registered user list location: %s', str(self.registered_user_list()))
         log.info('registered user list location: %s', str(self.registered_user_list()))
@@ -263,7 +264,7 @@ class CourseEnrollmentEventsPerDay(
 
     def registered_user_list(self):
         log.debug('Looking for registered user list in %s', str(self.input()['registered_users']))
-        return self.input()['registered_users'].output()
+        return self.input()['registered_users']
 
 
 class RegisteredUserList(ImportIntoHiveTableTask):
