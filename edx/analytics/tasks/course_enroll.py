@@ -40,12 +40,12 @@ class CourseEnrollmentEventsPerDayMixin(object):
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
 
         with self.registered_user_list().open() as registered_user_list:
-            while True:
+            transfer_buffer = registered_user_list.read(1024)
+
+            while transfer_buffer:
+                self.temporary_data_file.write(transfer_buffer)
                 transfer_buffer = registered_user_list.read(1024)
-                if transfer_buffer:
-                    self.temporary_data_file.write(transfer_buffer)
-                else:
-                    break
+
         self.temporary_data_file.seek(0)
 
         self.registered_users = set()
