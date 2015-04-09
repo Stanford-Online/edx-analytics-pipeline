@@ -263,7 +263,7 @@ class CourseEnrollmentEventsPerDay(
 
     def registered_user_list(self):
         log.debug('Looking for registered user list in %s', str(self.input()['registered_users']))
-        return self.input()['registered_users']
+        return self.input()['registered_users'].output()
 
 
 class RegisteredUserList(ImportIntoHiveTableTask):
