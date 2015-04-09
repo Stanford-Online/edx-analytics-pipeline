@@ -32,7 +32,9 @@ class CourseEnrollmentEventsPerDayMixin(object):
 
     def init_mapper(self):
         """ Fetches list of registered users' ids from s3 and stores in a set for filtering. """
+        log.debug('Attempting to fetch registered user list from %s', str(self.registered_user_list()))
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
+
         with self.registered_user_list().open() as registered_user_list:
             while True:
                 transfer_buffer = registered_user_list.read(1024)
@@ -48,7 +50,7 @@ class CourseEnrollmentEventsPerDayMixin(object):
             for line in registered_user_file.readlines():
                 self.registered_users.add(int(line))
 
-        log.debug("Stored id's for {} registered users".format(len(self.registered_users)))
+        log.debug("Stored id's for %s registered users", str(len(self.registered_users)))
 
     def mapper(self, line):
         """
@@ -238,7 +240,7 @@ class CourseEnrollmentEventsPerDay(
 
     def requires(self):
         kwargs = {
-            'dest': self.dest,
+            'dest': self.dest + 'registered_user_list/',
             'credentials': self.import_credentials,
             'num_mappers': self.n_reduce_tasks,
         }
@@ -257,7 +259,7 @@ class CourseEnrollmentEventsPerDay(
         super(CourseEnrollmentEventsPerDay, self).run()
 
     def registered_user_list(self):
-        log.debug('Looking for registered user list in {}'.format(self.input()['registered_users']))
+        log.debug('Looking for registered user list in %s', str(self.input()['registered_users']))
         return self.input()['registered_users']
 
 
