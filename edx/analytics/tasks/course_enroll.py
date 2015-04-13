@@ -3,7 +3,6 @@ Luigi tasks for extracting course enrollment statistics from tracking log files.
 """
 import luigi
 import luigi.s3
-from luigi.s3 import S3Target
 import datetime
 import tempfile
 import textwrap
@@ -40,7 +39,7 @@ class CourseEnrollmentEventsPerDayMixin(object):
 
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
 
-        with S3Target(self.registered_user_list()).open('r') as registered_user_list:
+        with self.registered_user_list().open() as registered_user_list:
             transfer_buffer = registered_user_list.read(1024)
 
             while transfer_buffer:
@@ -253,7 +252,8 @@ class CourseEnrollmentEventsPerDay(
 
         return {
             'log_files': PathSetTask(self.src, self.include, self.manifest),
-            'registered_users': RegisteredUserList(**kwargs)
+            'registered_users': ExternalURL('s3://stanford-edx-analytics-dev/intermediate/course-daily-facts/1428951760/registered_users/dt=2015-04-13/9e39bcf0-6296-4290-bab6-064921327489_000000')
+            #'registered_users': RegisteredUserList(**kwargs)
         }
 
     def output(self):
@@ -311,8 +311,7 @@ class RegisteredUserList(ImportIntoHiveTableTask):
 
     def output(self):
         output_name = 'registered_users/dt={date}'.format(date=self.run_date)
-        #return get_target_from_url(url_path_join(self.dest, output_name))
-        return url_path_join(self.dest, output_name)
+        return get_target_from_url(url_path_join(self.dest, output_name))
 
     @property
     def table_name(self):
