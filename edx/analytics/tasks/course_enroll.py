@@ -51,9 +51,14 @@ class CourseEnrollmentEventsPerDayMixin(object):
 
         self.registered_users = set()
 
+        for line in self.temporary_data_file.readlines():
+            self.registered_users.add(int(line))
+
+        """
         with open(self.temporary_data_file, 'rb') as registered_user_file:
             for line in registered_user_file.readlines():
                 self.registered_users.add(int(line))
+        """
 
         log.debug("Stored id's for %s registered users", str(len(self.registered_users)))
 
