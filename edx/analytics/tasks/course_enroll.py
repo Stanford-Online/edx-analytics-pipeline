@@ -36,7 +36,7 @@ class CourseEnrollmentEventsPerDayMixin(object):
 
         with self.registered_user_list().open() as registered_user_list:
             while True:
-                transfer_buffer = geolocation_data_input.read(1024)
+                transfer_buffer = registered_user_list.read(1024)
                 if transfer_buffer:
                     self.temporary_data_file.write(transfer_buffer)
                 else:
