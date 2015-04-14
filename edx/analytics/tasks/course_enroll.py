@@ -34,7 +34,7 @@ class CourseEnrollmentEventsPerDayMixin(object):
         """ Fetches list of registered users' ids from s3 and stores in a set for filtering. """
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
 
-        with self.registered_user_list().open() as registered_user_list:
+        with self.registered_user_list().open(mode='rb') as registered_user_list:
             transfer_buffer = registered_user_list.read(1024)
 
             while transfer_buffer:
