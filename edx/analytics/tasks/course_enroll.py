@@ -32,18 +32,12 @@ class CourseEnrollmentEventsPerDayMixin(object):
 
     def init_mapper(self):
         """ Fetches list of registered users' ids from s3 and stores in a set for filtering. """
-        print 'registered user list location: ' + str(self.registered_user_list())
-        log.debug('Attempting to fetch registered user list from ' + str(self.registered_user_list()))
-        log.error('registered user list location: ' + str(self.registered_user_list()))
-        log.info('registered user list location: ' + str(self.registered_user_list()))
-
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
 
         with self.registered_user_list().open() as registered_user_list:
             transfer_buffer = registered_user_list.read(1024)
 
             while transfer_buffer:
-                log.debug('Read 1024 bytes from registered user list')
                 self.temporary_data_file.write(transfer_buffer)
                 transfer_buffer = registered_user_list.read(1024)
 
@@ -53,12 +47,6 @@ class CourseEnrollmentEventsPerDayMixin(object):
 
         for line in self.temporary_data_file.readlines():
             self.registered_users.add(int(line))
-
-        """
-        with open(self.temporary_data_file, 'rb') as registered_user_file:
-            for line in registered_user_file.readlines():
-                self.registered_users.add(int(line))
-        """
 
         log.debug("Stored id's for %s registered users", str(len(self.registered_users)))
 
@@ -257,8 +245,7 @@ class CourseEnrollmentEventsPerDay(
 
         return {
             'log_files': PathSetTask(self.src, self.include, self.manifest),
-            'registered_users': ExternalURL('s3://stanford-edx-analytics-dev/intermediate/course-daily-facts/1428951760/registered_users/dt=2015-04-13/9e39bcf0-6296-4290-bab6-064921327489_000000')
-            #'registered_users': RegisteredUserList(**kwargs)
+            'registered_users': RegisteredUserList(**kwargs)
         }
 
     def output(self):
@@ -271,7 +258,7 @@ class CourseEnrollmentEventsPerDay(
 
     def registered_user_list(self):
         log.debug('Looking for registered user list in' + str(self.input()['registered_users']))
-        return self.input()['registered_users']
+        return ExternalURL(self.input()['registered_users'].url())
 
 
 class RegisteredUserList(ImportIntoHiveTableTask):
