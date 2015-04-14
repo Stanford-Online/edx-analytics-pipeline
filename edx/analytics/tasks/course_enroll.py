@@ -247,6 +247,7 @@ class CourseEnrollmentEventsPerDay(
 
         return {
             'log_files': PathSetTask(self.src, self.include, self.manifest),
+            'user_file_creator': registered_users,
             'registered_users': ExternalURL(registered_users.table_location)
         }
 
