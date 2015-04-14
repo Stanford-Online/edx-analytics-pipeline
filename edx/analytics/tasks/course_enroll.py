@@ -243,11 +243,9 @@ class CourseEnrollmentEventsPerDay(
             'num_mappers': self.n_reduce_tasks,
         }
 
-        registered_users = RegisteredUserList(**kwargs)
-
         return {
             'log_files': PathSetTask(self.src, self.include, self.manifest),
-            'registered_users': ExternalURL(registered_users.table_location())
+            'registered_users': RegisteredUserList(**kwargs)
         }
 
     def output(self):
@@ -260,7 +258,7 @@ class CourseEnrollmentEventsPerDay(
 
     def registered_user_list(self):
         log.debug('Looking for registered user list in' + str(self.input()['registered_users']))
-        return self.input()['registered_users'].url()
+        return self.input()['registered_users']
 
 
 class RegisteredUserList(ImportIntoHiveTableTask):
