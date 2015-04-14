@@ -243,9 +243,11 @@ class CourseEnrollmentEventsPerDay(
             'num_mappers': self.n_reduce_tasks,
         }
 
+        registered_users = RegisteredUserList(**kwargs)
+
         return {
             'log_files': PathSetTask(self.src, self.include, self.manifest),
-            'registered_users': RegisteredUserList(**kwargs)
+            'registered_users': ExternalURL(registered_users.table_location)
         }
 
     def output(self):
