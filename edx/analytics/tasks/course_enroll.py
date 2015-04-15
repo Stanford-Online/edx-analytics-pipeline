@@ -3,6 +3,7 @@ Luigi tasks for extracting course enrollment statistics from tracking log files.
 """
 import luigi
 import luigi.s3
+from luigi.hdfs import CompatibleHdfsFormat
 import datetime
 import tempfile
 import textwrap
@@ -34,13 +35,28 @@ class CourseEnrollmentEventsPerDayMixin(object):
         """ Fetches list of registered users' ids from s3 and stores in a set for filtering. """
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
 
-        with self.registered_user_list().open() as registered_user_list:
+        registered_user_list = self.registered_user_list()
+
+        url = registered_user_list.path()
+        client = registered_user_list.client()
+
+        key = client.get_key(url)
+        key.get_contents_to_filename('/tmp/registered_users.txt')
+
+        self.registered_users = set()
+
+        with open('/tmp/registered_users.txt', 'rb') as local_user_list:
+            for line in local_user_list.readlines():
+                self.registered_users.add(int(line))
+
+            """
             while True:
-                transfer_buffer = registered_user_list.read(1024)
+                transfer_buffer = local_user_list.read(1024)
                 if transfer_buffer:
                     self.temporary_data_file.write(transfer_buffer)
                 else:
                     break
+            """
             """
             transfer_buffer = registered_user_list.read(1024)
 
@@ -49,12 +65,7 @@ class CourseEnrollmentEventsPerDayMixin(object):
                 transfer_buffer = registered_user_list.read(1024)
             """
 
-        self.temporary_data_file.seek(0)
-
-        self.registered_users = set()
-
-        for line in self.temporary_data_file.readlines():
-            self.registered_users.add(int(line))
+            # self.temporary_data_file.seek(0)
 
         log.debug("Stored id's for %s registered users", str(len(self.registered_users)))
 
