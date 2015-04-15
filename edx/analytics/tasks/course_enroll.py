@@ -38,8 +38,11 @@ class CourseEnrollmentEventsPerDayMixin(object):
 
         url = registered_user_list.path
         client = registered_user_list.s3_client
+        all_files = client.list(url)
+        does_exist = client.exists(url)
 
         key = client.get_key(url)
+        raise Exception('URL: '+str(url)+' | EXISTS: '+str(does_exist)+' | FILES: '+str(all_files))
         key.get_contents_to_filename('/tmp/registered_users.txt')
 
         self.registered_users = set()
