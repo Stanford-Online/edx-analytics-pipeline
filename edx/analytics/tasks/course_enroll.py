@@ -37,7 +37,7 @@ class CourseEnrollmentEventsPerDayMixin(object):
         registered_user_list = self.registered_user_list()
 
         url = registered_user_list.path
-        client = registered_user_list.client
+        client = registered_user_list.s3_client
 
         key = client.get_key(url)
         key.get_contents_to_filename('/tmp/registered_users.txt')
