@@ -34,27 +34,19 @@ class CourseEnrollmentEventsPerDayMixin(object):
         """ Fetches list of registered users' ids from s3 and stores in a set for filtering. """
         self.temporary_data_file = tempfile.NamedTemporaryFile(prefix='registered_users')
 
-        with self.registered_user_list().open() as registered_user_list:
-            while True:
-                transfer_buffer = registered_user_list.read(1024)
-                if transfer_buffer:
-                    self.temporary_data_file.write(transfer_buffer)
-                else:
-                    break
-            """
-            transfer_buffer = registered_user_list.read(1024)
+        registered_user_list = self.registered_user_list()
 
-            while transfer_buffer:
-                self.temporary_data_file.write(transfer_buffer)
-                transfer_buffer = registered_user_list.read(1024)
-            """
+        url = registered_user_list.path()
+        client = registered_user_list.client()
 
-        self.temporary_data_file.seek(0)
+        key = client.get_key(url)
+        key.get_contents_to_filename('/tmp/registered_users.txt')
 
         self.registered_users = set()
 
-        for line in self.temporary_data_file.readlines():
-            self.registered_users.add(int(line))
+        with open('/tmp/registered_users.txt', 'rb') as local_user_list:
+            for line in local_user_list.readlines():
+                self.registered_users.add(int(line))
 
         log.debug("Stored id's for %s registered users", str(len(self.registered_users)))
 
