@@ -76,8 +76,6 @@ class CourseEnrollmentEventsPerDayMixin(object):
     def final_mapper(self):
         """Clean up after the mapper is done."""
         del self.registered_users
-        self.temporary_data_file.close()
-
         return tuple()
 
     def reducer(self, key, values):
