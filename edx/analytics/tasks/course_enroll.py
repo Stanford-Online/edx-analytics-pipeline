@@ -49,24 +49,6 @@ class CourseEnrollmentEventsPerDayMixin(object):
             for line in local_user_list.readlines():
                 self.registered_users.add(int(line))
 
-            """
-            while True:
-                transfer_buffer = local_user_list.read(1024)
-                if transfer_buffer:
-                    self.temporary_data_file.write(transfer_buffer)
-                else:
-                    break
-            """
-            """
-            transfer_buffer = registered_user_list.read(1024)
-
-            while transfer_buffer:
-                self.temporary_data_file.write(transfer_buffer)
-                transfer_buffer = registered_user_list.read(1024)
-            """
-
-            # self.temporary_data_file.seek(0)
-
         log.debug("Stored id's for %s registered users", str(len(self.registered_users)))
 
     def mapper(self, line):
