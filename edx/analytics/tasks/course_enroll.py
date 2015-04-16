@@ -40,21 +40,24 @@ class CourseEnrollmentEventsPerDayMixin(object):
         client = registered_user_list.s3_client
         all_files = client.list(url)
         does_exist = client.exists(url)
+        is_dir = client.is_dir(url)
+        file_list = []
 
         key = client.get_key(url)
-        try:
-            for i, user_file in enumerate(all_files):
-                key.get_contents_to_filename('/tmp/user_file_00%d.txt' % i)
-                file_list.append('/tmp/user_file_00%d.txt' % i)
+        for i, user_file in enumerate(all_files):
+            key.get_contents_to_filename('/tmp/user_file_00%d.txt' % i)
+            file_list.append('/tmp/user_file_00%d.txt' % i)
 
-            self.registered_users = set()
+        self.registered_users = set()
 
-            for user_file in file_list:
-                with open(user_file, 'rb') as local_user_list:
-                    for line in local_user_list.readlines():
-                        self.registered_users.add(int(line))
-        except:
-            raise Exception('URL: '+str(url)+' | EXISTS: '+str(does_exist)+' | FILES: '+str(all_files) +' | FILE_LIST: '+str([f for f in all_files]))
+        for user_file in file_list:
+            with open(user_file, 'rb') as local_user_list:
+                for line in local_user_list.readlines():
+                    self.registered_users.add(int(line))
+        #    except_str = 'URL: '+str(url)+' | EXISTS: '+str(does_exist)+' | IS_DIR: '+str(is_dir)+' | FILES: '+str(all_files) +' | FILE_LIST: '+str([f for f in all_files])
+        #   except_str += ' | KEY: ' + str(key)
+        #   except_str += ' | FILE_LIST: ' + str(file_list) 
+        #   raise Exception(except_str)
 
         log.debug("Stored id's for %s registered users", str(len(self.registered_users)))
 
