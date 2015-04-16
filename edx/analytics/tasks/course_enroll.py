@@ -43,8 +43,8 @@ class CourseEnrollmentEventsPerDayMixin(object):
         is_dir = client.is_dir(url)
         file_list = []
 
-        key = client.get_key(url)
         for i, user_file in enumerate(all_files):
+            key = client.get_key(user_file)
             key.get_contents_to_filename('/tmp/user_file_00%d.txt' % i)
             file_list.append('/tmp/user_file_00%d.txt' % i)
 
