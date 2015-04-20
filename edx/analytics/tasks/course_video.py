@@ -139,9 +139,9 @@ class CourseVideoSummaryMixin(CourseVideoEventMixin):
         unique users for that video on that date.
         """
         usernames = [x for x in value_gen]
-        unique_users = len(set(usernames))
         total_activity = len(usernames)
-        output = (unique_users, total_activity)
+        unique_users = len(set(usernames))
+        output = (total_activity, unique_users)
         yield key, output
 
     def get_mapper_key(self, event):
