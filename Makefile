@@ -24,7 +24,8 @@ develop: requirements
 	python setup.py develop
 
 system-requirements:
-	sudo apt-get update -q
+	# TODO: include update when upstream squeeze migration is out	
+	# sudo apt-get update -q
 	# This is not great, we can't use these libraries on slave nodes using this method.
 	sudo apt-get install -y -q libmysqlclient-dev libatlas3gf-base libpq-dev python-dev libffi-dev libssl-dev libxml2-dev libxslt1-dev
 
