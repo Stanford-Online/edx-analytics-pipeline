@@ -95,7 +95,7 @@
       sudo: True
 
     - name: bootstrap pip
-      command: apt-get install -q -y python-pip
+      command: yum install -q -y python-pip
       sudo: True
 
     - name: virtualenv installed
