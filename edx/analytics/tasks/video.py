@@ -506,8 +506,6 @@ class VideoUsageTableTask(VideoTableDownstreamMixin, HiveTableTask):
             output_root=self.partition_location
         )
 
-    def output(self):
-        return self.requires().output()
 
 
 class InsertToMysqlVideoTimelineTask(VideoTableDownstreamMixin, HiveQueryToMysqlTask):
