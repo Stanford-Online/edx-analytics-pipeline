@@ -3,7 +3,6 @@ from datetime import datetime
 
 from luigi.date_interval import Date
 
-from edx.analytics.tasks.url import url_path_join
 from edx.analytics.tasks.tests.acceptance import AcceptanceTestCase, when_geolocation_data_available
 
 
@@ -31,7 +30,6 @@ class LocationByCourseAcceptanceTest(AcceptanceTestCase):
             'InsertToMysqlCourseEnrollByCountryWorkflow',
             '--source', self.test_src,
             '--interval', self.DATE_INTERVAL.to_string(),
-            '--course-country-output', url_path_join(self.test_out, 'country'),
             '--n-reduce-tasks', str(self.NUM_REDUCERS),
         ])
 
