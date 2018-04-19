@@ -136,9 +136,9 @@
       command: >
         virtualenv --python={{ virtualenv_python }} {{ virtualenv_extra_args }} {{ working_venv_dir }}
 
-    - name: update pip
-      command: >
-        {{ working_venv_dir }}/bin/pip install -U pip
+#    - name: update pip
+#      command: >
+#        {{ working_venv_dir }}/bin/pip install -U pip
 
     - name: virtualenv initialized on Debian
       shell: >
