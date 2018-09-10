@@ -148,9 +148,18 @@
         virtualenv --python={{ virtualenv_python }} {{ virtualenv_extra_args }} {{ working_venv_dir }}
       when: not virtualenv_created.stat.exists
 
-    - name: update pip
-      command: >
-        {{ working_venv_dir }}/bin/pip install -U pip
+#    - name: update pip
+#      command: >
+#        {{ working_venv_dir }}/bin/pip install -U pip
+
+    - name: virtualenv initialized on Debian
+      shell: >
+        . {{ working_venv_dir }}/bin/activate && make install
+        chdir={{ working_repo_dir }}
+      environment:
+        WHEEL_URL: "{{ wheel_url | default('http://edx-wheelhouse.s3-website-us-east-1.amazonaws.com/Debian/squeeze') }}"
+        WHEEL_PYVER: "{{ wheel_pyver }}"
+      when: ansible_distribution in common_debian_variants
 
     - name: virtualenv initialized on Debian
       shell: >

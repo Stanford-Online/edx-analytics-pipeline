@@ -1,6 +1,5 @@
 """Test the AWS-specific elasticsearch connection."""
 import socket
-from unittest import TestCase
 
 from boto.exception import BotoServerError
 from elasticsearch.exceptions import ElasticsearchException, TransportError

@@ -233,7 +233,7 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
             course_id, answer_id = key
             timestamp, answer_data = value
             answer_data = json.loads(answer_data)
-            expected_key = "{}_{}".format(answer_id, answer_data["attempt_category"])
+            expected_key = "{}_{}".format(answer_id, int(answer_data["is_first_event"]))
             self.assertEquals(course_id, self.course_id)
             self.assertEquals(timestamp, self.timestamp)
             self.assertTrue(expected_key in expected)
@@ -309,16 +309,17 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
         """Returns expected answer data returned by the reducer, given the event's data."""
 
         answer_data = {}
+        
         first_submission = problem_data[0]['submission']
         last_submission = problem_data[-1]['submission']
 
-        def insert_answer_data(submission, attempt_category):
-            """
-            Inserts each response included in submission into the expected answer data dictionary.
+        def insert_answer_data(submission, is_first):
+            """ 
+            Inserts each response included in submission into the expected answer data dictionary. 
 
             Args:
                 submission: dictionary of all responses submitted at once for a user
-                attempt_category: a string that is 'first' for a user's first submission and 'last' otherwise
+                is_first: a boolean that is True for a user's first submission and False otherwise
             """
             for answer_id, submission_data in submission.iteritems():
                 answer_id_data = {
@@ -339,10 +340,10 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
                     answer_id_data['answer_value_id'] = submission_data['answer_value_id']
 
                 self._update_with_kwargs(answer_id_data, **kwargs)
-                answer_data[self._get_submission_data_key(answer_id, attempt_category)] = answer_id_data
+                answer_data[self._get_submission_data_key(answer_id, is_first)] = answer_id_data
 
-        insert_answer_data(first_submission, attempt_category='first')
-        insert_answer_data(last_submission, attempt_category='last')
+        insert_answer_data(first_submission, is_first=1)
+        insert_answer_data(last_submission, is_first=0)
 
         return answer_data
 
@@ -351,14 +352,14 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
         first_response = answer_data.copy()
         last_response = answer_data.copy()
 
-        first_response['attempt_category'] = 'first'
-        last_response['attempt_category'] = 'last'
+        first_response['is_first_event'] = 1
+        last_response['is_first_event'] = 0
 
         return first_response, last_response
 
-    def _get_submission_data_key(self, answer_id, attempt_category):
+    def _get_submission_data_key(self, answer_id, is_first):
         """ Construct key to distinguish identical first and last responses. """
-        return "{id}_{category}".format(id=answer_id, category=attempt_category)
+        return "{id}_{is_first}".format(id=answer_id, is_first=is_first)
 
     def test_no_events(self):
         self.assert_no_output([])
@@ -369,11 +370,9 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
         answer_data = self._get_answer_data()
         first, last = self._augment_single_submission_data(answer_data)
 
-        self._check_output(
-            [input_data],
-            {
-                self._get_submission_data_key(self.answer_id, 'first'): first,
-                self._get_submission_data_key(self.answer_id, 'last'): last,
+        self._check_output([input_data], {
+                self._get_submission_data_key(self.answer_id, 1): first,
+                self._get_submission_data_key(self.answer_id, 0): last,
             }
         )
 
@@ -389,11 +388,10 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
         self._check_output(
             [input_data],
             {
-                self._get_submission_data_key(self.answer_id, 'first'): first,
-                self._get_submission_data_key(self.answer_id, 'last'): last,
+                self._get_submission_data_key(self.answer_id, 1): first,
+                self._get_submission_data_key(self.answer_id, 0): last,
             }
         )
-
     def test_one_submission_event(self):
         problem_data = self._create_submission_problem_data_dict()
         input_data = (self.timestamp, json.dumps(problem_data))
@@ -424,10 +422,10 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
         first_answer_2, last_answer_2 = self._augment_single_submission_data(answer_data_2)
 
         self._check_output([input_data], {
-            self._get_submission_data_key(self.answer_id, 'first'): first_answer,
-            self._get_submission_data_key(self.second_answer_id, 'first'): first_answer_2,
-            self._get_submission_data_key(self.answer_id, 'last'): last_answer,
-            self._get_submission_data_key(self.second_answer_id, 'last'): last_answer_2,
+            self._get_submission_data_key(self.answer_id, 1): first_answer, 
+            self._get_submission_data_key(self.second_answer_id, 1): first_answer_2,
+            self._get_submission_data_key(self.answer_id, 0): last_answer,
+            self._get_submission_data_key(self.second_answer_id, 0): last_answer_2,
         })
 
     def test_two_answer_submission_event(self):
@@ -470,8 +468,8 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
             answer_data = self._get_answer_data()
             first, last = self._augment_single_submission_data(answer_data)
             self._check_output([input_data], {
-                self._get_submission_data_key(self.answer_id, 'first'): first,
-                self._get_submission_data_key(self.answer_id, 'last'): last,
+                self._get_submission_data_key(self.answer_id, 1): first,
+                self._get_submission_data_key(self.answer_id, 0): last,
             })
 
     def test_bogus_choice_event(self):
@@ -499,8 +497,8 @@ class ProblemCheckEventReduceTest(InitializeOpaqueKeysMixin, ProblemCheckEventBa
         self._check_output(
             [input_data],
             {
-                self._get_submission_data_key(self.answer_id, 'first'): first,
-                self._get_submission_data_key(self.answer_id, 'last'): last,
+                self._get_submission_data_key(self.answer_id, 1): first,
+                self._get_submission_data_key(self.answer_id, 0): last,
             }
         )
 
@@ -546,7 +544,6 @@ class AnswerDistributionPerCourseReduceTest(InitializeOpaqueKeysMixin, TestCase,
             "input_type": "formulaequationinput",
             "question": u"Enter the number(\u00ba) of fingers on a human hand",
             "response_type": "numericalresponse",
-            "attempt_category": 'last',
         }
         answer_data.update(**kwargs)
         return answer_data
@@ -559,7 +556,6 @@ class AnswerDistributionPerCourseReduceTest(InitializeOpaqueKeysMixin, TestCase,
             "variant": "1",
             "correct": False,
             "problem_id": self.problem_id,
-            "attempt_category": 'last',
         }
         answer_data.update(**kwargs)
         return answer_data
@@ -568,8 +564,8 @@ class AnswerDistributionPerCourseReduceTest(InitializeOpaqueKeysMixin, TestCase,
         """Get an expected reducer output based on the input."""
         expected_output = {
             "Problem Display Name": answer_data.get('problem_display_name') or "",
-            "First Response Count": int(answer_data.get('attempt_category', 'first') == 'first'),
-            "Last Response Count": int(answer_data.get('attempt_category', 'first') != 'first'),
+            "First Response Count": int(answer_data.get('is_first_event', False)),
+            "Last Response Count": int(not answer_data.get('is_first_event', False)),
             "PartID": self.answer_id,
             "Question": answer_data.get('question') or "",
             "AnswerValue": answer_data.get('answer') or answer_data.get('answer_value_id') or "",

@@ -107,22 +107,22 @@ class ProblemCheckEventMixin(object):
         # Get the first entry.
         _timestamp, first_event = values[0]
 
-        for answer in self._generate_answers(first_event, 'first'):
+        for answer in self._generate_answers(first_event, is_first_event=True):
             yield answer
 
         # Get the last entry.
         _timestamp, most_recent_event = values[-1]
 
-        for answer in self._generate_answers(most_recent_event, 'last'):
+        for answer in self._generate_answers(most_recent_event, is_first_event=False):
             yield answer
 
-    def _generate_answers(self, event_string, attempt_category):
+    def _generate_answers(self, event_string, is_first_event):
         """
         Generates a list of answers given a problem_check event.
 
         Args:
             event_string:  a json-encoded string version of an event's data.
-            attempt_category: a string that is 'first' for a user's first response to a question, 'last' otherwise
+            is_first_event: a boolean that is True for a user's first response to a question, False otherwise
 
         Returns:
             list of answer data tuples.
@@ -364,13 +364,10 @@ class AnswerDistributionPerCourseMixin(object):
                 }
 
             # For most cases, just increment a counter:
-            attempt_category = answer.get('attempt_category')
-            if attempt_category == 'first':
+            if answer.get('is_first_event', False):
                 answer_dist[answer_grouping_key]['First Response Count'] += 1
-            elif attempt_category == 'last':
-                answer_dist[answer_grouping_key]['Last Response Count'] += 1
             else:
-                raise RuntimeError('Unknown attempt category: {0}'.format(attempt_category))
+                answer_dist[answer_grouping_key]['Last Response Count'] += 1
 
         # Finally dispatch the answers, providing the course_id as a
         # key so that the answers belonging to a course will be
@@ -484,7 +481,7 @@ class AnswerDistributionPerCourseMixin(object):
         valid_type_str = get_config().get(
             'answer-distribution',
             'valid_response_types',
-            'choiceresponse,optionresponse,multiplechoiceresponse,numericalresponse,stringresponse,formularesponse'
+            'customresponse,choiceresponse,optionresponse,multiplechoiceresponse,numericalresponse,stringresponse,formularesponse'
         )
 
         valid_types = set(valid_type_str.split(","))
