@@ -1,14 +1,14 @@
 """Test enrollment validation."""
 
+from collections import defaultdict
 import datetime
 import gzip
 import json
 import logging
-from collections import defaultdict
 import StringIO
 
 from edx.analytics.tasks.tests.acceptance import AcceptanceTestCase
-from edx.analytics.tasks.url import url_path_join
+from edx.analytics.tasks.util.url import url_path_join
 
 
 log = logging.getLogger(__name__)
@@ -17,9 +17,9 @@ log = logging.getLogger(__name__)
 class EnrollmentValidationAcceptanceTest(AcceptanceTestCase):
     """Test enrollment validation."""
 
-    INPUT_FILE = 'enrollment_validation_trends_tracking.log'
+    INPUT_FILE = 'enrollment_validation_trends_tracking.log.j2'
     END_DATE = datetime.datetime.utcnow().date()
-    START_DATE = datetime.date(2014, 8, 1)
+    START_DATE = datetime.datetime.utcnow().date() - datetime.timedelta(days=6)
     # Define an interval that ends with today, so that a dump is triggered.
     DATE_INTERVAL = "{}-{}".format(START_DATE, END_DATE)
     # Create a wider interval that will include today's dump.
@@ -28,7 +28,11 @@ class EnrollmentValidationAcceptanceTest(AcceptanceTestCase):
 
     def test_enrollment_validation(self):
         # Initial setup.
-        self.upload_tracking_log(self.INPUT_FILE, self.START_DATE)
+        context = {
+            'days': lambda n: datetime.timedelta(days=n),
+            'start_date': self.START_DATE
+        }
+        self.upload_tracking_log(self.INPUT_FILE, self.START_DATE, template_context=context)
         self.execute_sql_fixture_file(self.SQL_FIXTURE)
         self.test_validate = url_path_join(self.test_root, 'validate')
 

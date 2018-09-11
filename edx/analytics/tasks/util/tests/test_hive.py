@@ -1,14 +1,14 @@
 """Tests for some hive related utilities"""
 
 from datetime import date
+from unittest import TestCase
 
 from mock import sentinel
 
-from edx.analytics.tasks.tests import unittest
 from edx.analytics.tasks.util import hive
 
 
-class HivePartitionTest(unittest.TestCase):
+class HivePartitionTest(TestCase):
     """Ensure the partition serializes properly to various formats."""
 
     def setUp(self):
@@ -18,7 +18,7 @@ class HivePartitionTest(unittest.TestCase):
         self.assertEquals(self.partition.as_dict(), {'dt': '2014-01-01'})
 
     def test_query_spec(self):
-        self.assertEquals(self.partition.query_spec, "dt='2014-01-01'")
+        self.assertEquals(self.partition.query_spec, "`dt`='2014-01-01'")
 
     def test_path_spec(self):
         self.assertEquals(self.partition.path_spec, "dt=2014-01-01")
@@ -27,7 +27,7 @@ class HivePartitionTest(unittest.TestCase):
         self.assertEquals(str(self.partition), "dt=2014-01-01")
 
 
-class HivePartitionParameterTest(unittest.TestCase):
+class HivePartitionParameterTest(TestCase):
     """Ensure the partition can be read from a string."""
 
     def test_partition_parameter(self):
@@ -37,7 +37,7 @@ class HivePartitionParameterTest(unittest.TestCase):
         self.assertEquals(str(partition), 'dt=2014-01-01')
 
 
-class HiveQueryToMysqlTaskTest(unittest.TestCase):
+class HiveQueryToMysqlTaskTest(TestCase):
     """Test some of the tricky logic in HiveQueryToMysqlTask"""
 
     def test_hive_columns(self):
@@ -86,7 +86,7 @@ class HiveQueryToMysqlTaskTest(unittest.TestCase):
         self.assertEquals(requirements['other_tables'], (sentinel.table_1, sentinel.table_2))
 
 
-class HiveWarehouseMixinTest(unittest.TestCase):
+class HiveWarehouseMixinTest(TestCase):
     """Test the partition path generation"""
 
     def setUp(self):
