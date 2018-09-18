@@ -2,27 +2,25 @@
 Luigi tasks for extracting problem answer distribution statistics from
 tracking log files.
 """
-import math
 import csv
 import hashlib
-import html5lib
 import json
+import logging
+import math
 from operator import itemgetter
 
-import luigi
-import luigi.hdfs
+import html5lib
 import luigi.s3
 from luigi.configuration import get_config
 
-from edx.analytics.tasks.common.mapreduce import MapReduceJobTask, MultiOutputMapReduceJobTask, MapReduceJobTaskMixin
+import edx.analytics.tasks.util.eventlog as eventlog
+import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
+from edx.analytics.tasks.common.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin, MultiOutputMapReduceJobTask
 from edx.analytics.tasks.common.mysql_load import MysqlInsertTask, MysqlInsertTaskMixin
 from edx.analytics.tasks.common.pathutil import PathSetTask
 from edx.analytics.tasks.util.decorators import workflow_entry_point
-import edx.analytics.tasks.util.eventlog as eventlog
-import edx.analytics.tasks.util.opaque_key_util as opaque_key_util
 from edx.analytics.tasks.util.url import ExternalURL, get_target_from_url, url_path_join
 
-import logging
 log = logging.getLogger(__name__)
 
 
@@ -107,22 +105,22 @@ class ProblemCheckEventMixin(object):
         # Get the first entry.
         _timestamp, first_event = values[0]
 
-        for answer in self._generate_answers(first_event, is_first_event=True):
+        for answer in self._generate_answers(first_event, 'first'):
             yield answer
 
         # Get the last entry.
         _timestamp, most_recent_event = values[-1]
 
-        for answer in self._generate_answers(most_recent_event, is_first_event=False):
+        for answer in self._generate_answers(most_recent_event, 'last'):
             yield answer
 
-    def _generate_answers(self, event_string, is_first_event):
+    def _generate_answers(self, event_string, attempt_category):
         """
         Generates a list of answers given a problem_check event.
 
         Args:
             event_string:  a json-encoded string version of an event's data.
-            is_first_event: a boolean that is True for a user's first response to a question, False otherwise
+            attempt_category: a string that is 'first' for a user's first response to a question, 'last' otherwise
 
         Returns:
             list of answer data tuples.
@@ -364,10 +362,13 @@ class AnswerDistributionPerCourseMixin(object):
                 }
 
             # For most cases, just increment a counter:
-            if answer.get('is_first_event', False):
+            attempt_category = answer.get('attempt_category')
+            if attempt_category == 'first':
                 answer_dist[answer_grouping_key]['First Response Count'] += 1
-            else:
+            elif attempt_category == 'last':
                 answer_dist[answer_grouping_key]['Last Response Count'] += 1
+            else:
+                raise RuntimeError('Unknown attempt category: {0}'.format(attempt_category))
 
         # Finally dispatch the answers, providing the course_id as a
         # key so that the answers belonging to a course will be
@@ -481,7 +482,7 @@ class AnswerDistributionPerCourseMixin(object):
         valid_type_str = get_config().get(
             'answer-distribution',
             'valid_response_types',
-            'customresponse,choiceresponse,optionresponse,multiplechoiceresponse,numericalresponse,stringresponse,formularesponse'
+            'choiceresponse,optionresponse,multiplechoiceresponse,numericalresponse,stringresponse,formularesponse'
         )
 
         valid_types = set(valid_type_str.split(","))
