@@ -77,6 +77,12 @@ class CourseEnrollmentEventsTask(
             self.incr_counter(self.counter_category_name, 'Discard Non-Enrollment Event Type', 1)
             return
 
+        username = eventlog.get_event_username(event)
+        if not username:
+            log.error("encountered event with missing: %s (unauthenticated user)", username)
+            self.incr_counter(self.counter_category_name, 'Discard Missing Username', 1)
+            return
+
         timestamp = eventlog.get_event_time_string(event)
         if timestamp is None:
             log.error("encountered event with bad timestamp: %s", event)
