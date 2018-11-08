@@ -517,6 +517,7 @@ class QueryLastCountryPerCourseTask(
             FROM student_courseenrollment sce
             LEFT OUTER JOIN auth_user au on sce.user_id = au.id
             LEFT OUTER JOIN last_country_of_user uc on au.username = uc.username
+            WHERE au.username NOT LIKE 'anon__%'
             GROUP BY sce.dt, sce.course_id, uc.country_code;
         """)
 

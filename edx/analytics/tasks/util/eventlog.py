@@ -145,6 +145,10 @@ def get_event_username(event):
         username = username.strip()
         if len(username) == 0:
             username = None
+
+    # Filter out anonymous users.
+    if username is not None and username.startswith('anon__'):
+        username = None
     return username
 
 
