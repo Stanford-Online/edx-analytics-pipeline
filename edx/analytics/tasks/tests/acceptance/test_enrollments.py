@@ -5,11 +5,10 @@ End to end test of demographic trends.
 import datetime
 import logging
 import os
-
 from cStringIO import StringIO
 
-from ddt import ddt, data
 import pandas
+from ddt import data, ddt
 
 from edx.analytics.tasks.insights.enrollments import EnrollmentSummaryRecord
 from edx.analytics.tasks.tests.acceptance import AcceptanceTestCase
@@ -37,9 +36,9 @@ class EnrollmentAcceptanceTest(AcceptanceTestCase):
         self.execute_sql_fixture_file('load_auth_userprofile.sql')
 
         self.upload_file(
-            os.path.join(self.data_dir, 'input', 'course_catalog.json'),
-            url_path_join(self.warehouse_path, 'course_catalog_raw', 'dt={}'.format(self.CATALOG_DATE),
-                          'course_catalog.json')
+            os.path.join(self.data_dir, 'input', 'course_runs.json'),
+            url_path_join(self.warehouse_path, 'discovery_api_raw', 'dt={}'.format(self.CATALOG_DATE),
+                          'course_runs.json')
         )
         self.import_db.execute_sql_file(
             os.path.join(self.data_dir, 'input', 'load_grades_persistentcoursegrade.sql')
