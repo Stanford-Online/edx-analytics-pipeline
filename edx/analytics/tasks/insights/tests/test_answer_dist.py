@@ -2,8 +2,8 @@
 Tests for tasks that calculate answer distributions.
 
 """
-import json
 import hashlib
+import json
 import math
 import os
 import shutil
@@ -16,13 +16,10 @@ from opaque_keys.edx.locator import CourseLocator
 
 from edx.analytics.tasks.common.tests.map_reduce_mixins import MapperTestMixin, ReducerTestMixin
 from edx.analytics.tasks.insights.answer_dist import (
-    ProblemCheckEventMixin,
-    AnswerDistributionPerCourseMixin,
-    AnswerDistributionOneFilePerCourseTask,
-    try_str_to_float,
+    AnswerDistributionOneFilePerCourseTask, AnswerDistributionPerCourseMixin, ProblemCheckEventMixin, try_str_to_float
 )
-from edx.analytics.tasks.util.tests.config import with_luigi_config, OPTION_REMOVED
-from edx.analytics.tasks.util.tests.opaque_key_mixins import InitializeOpaqueKeysMixin, InitializeLegacyKeysMixin
+from edx.analytics.tasks.util.tests.config import OPTION_REMOVED, with_luigi_config
+from edx.analytics.tasks.util.tests.opaque_key_mixins import InitializeLegacyKeysMixin, InitializeOpaqueKeysMixin
 
 
 class ProblemCheckEventBaseTest(MapperTestMixin, ReducerTestMixin, TestCase):
@@ -932,10 +929,10 @@ class AnswerDistributionOneFilePerCourseTaskTest(MapperTestMixin, ReducerTestMix
 
         self.task = AnswerDistributionOneFilePerCourseTask(
             mapreduce_engine='local',
-            src=None,
+            src=[],
             dest=None,
             name=None,
-            include=None,
+            include=[],
             output_root=None,
         )
 
@@ -971,10 +968,10 @@ class AnswerDistributionOneFilePerCourseTaskTest(MapperTestMixin, ReducerTestMix
         hashed_course_id = hashlib.sha1(course_id).hexdigest()
         task = AnswerDistributionOneFilePerCourseTask(
             mapreduce_engine='local',
-            src=None,
+            src=[],
             dest=None,
             name='name',
-            include=None,
+            include=[],
             output_root='/tmp',
         )
         output_path = task.output_path_for_key(course_id)
@@ -986,10 +983,10 @@ class AnswerDistributionOneFilePerCourseTaskTest(MapperTestMixin, ReducerTestMix
         hashed_course_id = hashlib.sha1(course_id).hexdigest()
         task = AnswerDistributionOneFilePerCourseTask(
             mapreduce_engine='local',
-            src=None,
+            src=[],
             dest=None,
             name='name',
-            include=None,
+            include=[],
             output_root='/tmp',
         )
         output_path = task.output_path_for_key(course_id)
@@ -1017,10 +1014,10 @@ class AnswerDistributionOneFilePerCourseTaskOutputRootTest(TestCase):
         self.assertTrue(os.path.exists(self.output_root))
         AnswerDistributionOneFilePerCourseTask(
             mapreduce_engine='local',
-            src=None,
+            src=[],
             dest=None,
             name='name',
-            include=None,
+            include=[],
             output_root=self.output_root,
         )
         self.assertTrue(os.path.exists(self.output_root))
@@ -1030,10 +1027,10 @@ class AnswerDistributionOneFilePerCourseTaskOutputRootTest(TestCase):
         # to get rid of the output_root directory.
         task = AnswerDistributionOneFilePerCourseTask(
             mapreduce_engine='local',
-            src=None,
+            src=[],
             dest=None,
             name='name',
-            include=None,
+            include=[],
             output_root=self.output_root,
             delete_output_root="true",
             marker=self.output_root,

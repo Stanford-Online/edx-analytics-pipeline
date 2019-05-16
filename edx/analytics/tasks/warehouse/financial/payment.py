@@ -1,16 +1,17 @@
 
 import luigi
 
-from edx.analytics.tasks.warehouse.financial.cybersource import IntervalPullFromCybersourceTask, CybersourceDataValidationTask
-from edx.analytics.tasks.warehouse.financial.paypal import PaypalTransactionsIntervalTask, PaypalDataValidationTask
+from edx.analytics.tasks.warehouse.financial.cybersource import (
+    CybersourceDataValidationTask, IntervalPullFromCybersourceTask
+)
+from edx.analytics.tasks.warehouse.financial.paypal import PaypalDataValidationTask, PaypalTransactionsIntervalTask
 
 
 class PaymentTask(luigi.WrapperTask):
 
     import_date = luigi.DateParameter()
-    cybersource_merchant_ids = luigi.Parameter(
-        default_from_config={'section': 'payment', 'name': 'cybersource_merchant_ids'},
-        is_list=True
+    cybersource_merchant_ids = luigi.ListParameter(
+        config_path={'section': 'payment', 'name': 'cybersource_merchant_ids'},
     )
 
     def requires(self):

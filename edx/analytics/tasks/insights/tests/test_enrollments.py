@@ -1,22 +1,51 @@
 """Test enrollment computations"""
 
-from datetime import datetime
 import json
+from datetime import datetime
 from unittest import TestCase
 
 import luigi
 
 from edx.analytics.tasks.common.tests.map_reduce_mixins import MapperTestMixin, ReducerTestMixin
 from edx.analytics.tasks.insights.enrollments import (
-    ACTIVATED,
-    DEACTIVATED,
-    MODE_CHANGED,
-    CourseEnrollmentSummaryTask,
-    CourseEnrollmentTask,
-    CourseEnrollmentEventsTask,
-    ImportCourseSummaryEnrollmentsIntoMysql,
+    ACTIVATED, DEACTIVATED, MODE_CHANGED, CourseEnrollmentEventsTask, CourseEnrollmentSummaryTask, CourseEnrollmentTask,
+    CourseMetaSummaryEnrollmentIntoMysql
 )
-from edx.analytics.tasks.util.tests.opaque_key_mixins import InitializeOpaqueKeysMixin, InitializeLegacyKeysMixin
+from edx.analytics.tasks.util.tests.opaque_key_mixins import InitializeLegacyKeysMixin, InitializeOpaqueKeysMixin
+
+
+class CourseEnrollmentTaskParamTest(TestCase):
+
+    def test_use_interval(self):
+        interval = luigi.DateIntervalParameter().parse('2013-01-01')
+        interval_start = None
+        CourseEnrollmentTask(
+            interval=interval,
+            interval_start=interval_start,
+            output_root="/fake/output",
+            overwrite_n_days=5
+        )
+
+    def test_use_interval_start(self):
+        interval = None
+        interval_start = luigi.DateParameter().parse('2013-01-01')
+        CourseEnrollmentTask(
+            interval=interval,
+            interval_start=interval_start,
+            output_root="/fake/output",
+            overwrite_n_days=5
+        )
+
+    def test_missing_interval(self):
+        interval = None
+        interval_start = None
+        with self.assertRaises(luigi.parameter.MissingParameterException):
+            CourseEnrollmentTask(
+                interval=interval,
+                interval_start=interval_start,
+                output_root="/fake/output",
+                overwrite_n_days=5
+            )
 
 
 class CourseEnrollmentTaskMapTest(MapperTestMixin, InitializeOpaqueKeysMixin, TestCase):
@@ -94,12 +123,12 @@ class CourseEnrollmentTaskMapTest(MapperTestMixin, InitializeOpaqueKeysMixin, Te
 
     def test_good_enroll_event(self):
         line = self.create_event_log_line()
-        expected_value = (self.course_id, self.user_id, self.timestamp, ACTIVATED, 'honor')
+        expected_value = (self.encoded_course_id, self.user_id, self.timestamp, ACTIVATED, 'honor')
         self.assert_single_map_output(line, self.expected_key, expected_value)
 
     def test_good_unenroll_event(self):
         line = self.create_event_log_line(event_type=DEACTIVATED)
-        expected_value = (self.course_id, self.user_id, self.timestamp, DEACTIVATED, 'honor')
+        expected_value = (self.encoded_course_id, self.user_id, self.timestamp, DEACTIVATED, 'honor')
         self.assert_single_map_output(line, self.expected_key, expected_value)
 
 
@@ -567,13 +596,14 @@ class CourseEnrollmentSummaryTaskReducerTest(ReducerTestMixin, TestCase):
 
 
 class TestImportCourseSummaryEnrollmentsIntoMysql(TestCase):
+    """Test that the correct columns are in the Course Summary Enrollments test set."""
     def test_query(self):
         expected_columns = ('course_id', 'catalog_course_title', 'catalog_course', 'start_time', 'end_time',
                             'pacing_type', 'availability', 'mode', 'count', 'count_change_7_days',
                             'cumulative_count', 'passing_users',)
-        import_task = ImportCourseSummaryEnrollmentsIntoMysql(
+        import_task = CourseMetaSummaryEnrollmentIntoMysql(
             date=datetime(2017, 1, 1), warehouse_path='/tmp/foo'
         )
-        select_clause = import_task.query.partition('FROM')[0]
+        select_clause = import_task.insert_source_task.query().partition('FROM')[0]
         for column in expected_columns:
             assert column in select_clause
