@@ -1,36 +1,28 @@
 """
 Determine the number of users in each country are enrolled in each course.
 """
-from collections import defaultdict
 import datetime
 import logging
 import textwrap
+from collections import defaultdict
 
 import luigi
-from luigi.hive import HiveQueryTask
+from luigi.contrib.hive import HiveQueryTask
+from luigi.parameter import MissingParameterException
 
 from edx.analytics.tasks.common.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin, MultiOutputMapReduceJobTask
 from edx.analytics.tasks.common.mysql_load import MysqlInsertTask
 from edx.analytics.tasks.common.pathutil import (
-    PathSelectionByDateIntervalTask,
-    EventLogSelectionMixin,
-    EventLogSelectionDownstreamMixin,
+    EventLogSelectionDownstreamMixin, EventLogSelectionMixin, PathSelectionByDateIntervalTask
 )
-from edx.analytics.tasks.insights.database_imports import ImportStudentCourseEnrollmentTask, ImportAuthUserTask
-from edx.analytics.tasks.util.decorators import workflow_entry_point
+from edx.analytics.tasks.insights.database_imports import ImportAuthUserTask, ImportStudentCourseEnrollmentTask
 from edx.analytics.tasks.util import eventlog
-from edx.analytics.tasks.util.geolocation import (
-    GeolocationMixin, GeolocationDownstreamMixin
-)
-from edx.analytics.tasks.util.hive import (
-    WarehouseMixin,
-    hive_database_name,
-    BareHiveTableTask,
-    HivePartitionTask,
-)
+from edx.analytics.tasks.util.decorators import workflow_entry_point
+from edx.analytics.tasks.util.geolocation import GeolocationDownstreamMixin, GeolocationMixin
+from edx.analytics.tasks.util.hive import BareHiveTableTask, HivePartitionTask, WarehouseMixin, hive_database_name
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
-from edx.analytics.tasks.util.record import Record, StringField, DateField, IntegerField
-from edx.analytics.tasks.util.url import ExternalURL, get_target_from_url, url_path_join, UncheckedExternalURL
+from edx.analytics.tasks.util.record import DateField, IntegerField, Record, StringField
+from edx.analytics.tasks.util.url import ExternalURL, UncheckedExternalURL, get_target_from_url, url_path_join
 
 log = logging.getLogger(__name__)
 
@@ -192,6 +184,7 @@ class LastCountryOfUserDownstreamMixin(
 
     # Define optional parameters, to be used if 'interval' is not defined.
     interval_start = luigi.DateParameter(
+        default=None,
         config_path={'section': 'location-per-course', 'name': 'interval_start'},
         significant=False,
         description='The start date to extract ip addresses for.  Ignored if `interval` is provided.',
@@ -214,6 +207,8 @@ class LastCountryOfUserDownstreamMixin(
         super(LastCountryOfUserDownstreamMixin, self).__init__(*args, **kwargs)
 
         if not self.interval:
+            if self.interval_start is None:
+                raise MissingParameterException("Either 'interval' or 'interval_start' parameter is required to be specified.")
             self.interval = luigi.date_interval.Custom(self.interval_start, self.interval_end)
 
 

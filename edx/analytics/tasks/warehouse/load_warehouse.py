@@ -8,15 +8,18 @@ import luigi
 from edx.analytics.tasks.common.vertica_load import SchemaManagementTask
 from edx.analytics.tasks.util.hive import WarehouseMixin
 from edx.analytics.tasks.util.url import ExternalURL
-from edx.analytics.tasks.util.vertica_target import CredentialFileVerticaTarget
-from edx.analytics.tasks.warehouse.course_catalog import DailyLoadSubjectsToVerticaTask
-from edx.analytics.tasks.warehouse.load_internal_reporting_certificates import LoadInternalReportingCertificatesToWarehouse
+from edx.analytics.tasks.warehouse.load_internal_reporting_certificates import (
+    LoadInternalReportingCertificatesToWarehouse
+)
 from edx.analytics.tasks.warehouse.load_internal_reporting_country import LoadInternalReportingCountryToWarehouse
-from edx.analytics.tasks.warehouse.load_internal_reporting_course_catalog import LoadInternalReportingCourseCatalogToWarehouse
-from edx.analytics.tasks.warehouse.load_internal_reporting_user_activity import LoadInternalReportingUserActivityToWarehouse
-from edx.analytics.tasks.warehouse.load_internal_reporting_user_course import LoadUserCourseSummary
+from edx.analytics.tasks.warehouse.load_internal_reporting_course_catalog import (
+    LoadInternalReportingCourseCatalogToWarehouse
+)
 from edx.analytics.tasks.warehouse.load_internal_reporting_user import LoadInternalReportingUserToWarehouse
-
+from edx.analytics.tasks.warehouse.load_internal_reporting_user_activity import (
+    LoadInternalReportingUserActivityToWarehouse
+)
+from edx.analytics.tasks.warehouse.load_internal_reporting_user_course import LoadUserCourseSummary
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +43,7 @@ class WarehouseWorkflowMixin(WarehouseMixin):
         description='Path to the external access credentials file.',
     )
 
-    overwrite = luigi.BooleanParameter(default=False, significant=False)
+    overwrite = luigi.BoolParameter(default=False, significant=False)
 
     # We rename the schema after warehouse loading step. This causes
     # Luigi to think that tasks are not complete as it cannot find the
@@ -53,7 +56,6 @@ class PreLoadWarehouseTask(SchemaManagementTask):
     """
     Task needed to run before loading data into warehouse.
     """
-    priority = 100
 
     @property
     def queries(self):
@@ -72,14 +74,6 @@ class LoadWarehouseTask(WarehouseWorkflowMixin, luigi.WrapperTask):
     """Runs the tasks needed to load warehouse."""
 
     def requires(self):
-        kwargs = {
-            'schema': self.schema + '_loading',
-            'marker_schema': self.marker_schema,
-            'credentials': self.credentials,
-            'overwrite': self.overwrite,
-            'warehouse_path': self.warehouse_path,
-        }
-
         yield PreLoadWarehouseTask(
             date=self.date,
             schema=self.schema,
@@ -87,7 +81,19 @@ class LoadWarehouseTask(WarehouseWorkflowMixin, luigi.WrapperTask):
             marker_schema=self.marker_schema,
             overwrite=self.overwrite
         )
-        yield (
+
+    def __init__(self, *args, **kwargs):
+        super(LoadWarehouseTask, self).__init__(*args, **kwargs)
+        self.is_complete = False
+
+        kwargs = {
+            'schema': self.schema + '_loading',
+            'marker_schema': self.marker_schema,
+            'credentials': self.credentials,
+            'overwrite': self.overwrite,
+            'warehouse_path': self.warehouse_path,
+        }
+        self.tasks_to_run = [
             LoadInternalReportingCertificatesToWarehouse(
                 date=self.date,
                 **kwargs
@@ -115,11 +121,18 @@ class LoadWarehouseTask(WarehouseWorkflowMixin, luigi.WrapperTask):
                 n_reduce_tasks=self.n_reduce_tasks,
                 **kwargs
             ),
-            DailyLoadSubjectsToVerticaTask(
-                date=self.date,
-                **kwargs
-            ),
-        )
+        ]
+
+    def run(self):
+        # This is called again after each yield that provides a dynamic dependency.
+        # Because overwrite might be set on the tasks, make sure that each is called only once.
+        if self.tasks_to_run:
+            yield self.tasks_to_run.pop()
+
+        self.is_complete = True
+
+    def complete(self):
+        return self.is_complete
 
 
 class PostLoadWarehouseTask(SchemaManagementTask):
@@ -127,8 +140,6 @@ class PostLoadWarehouseTask(SchemaManagementTask):
     Task needed to run after loading data into warehouse.
     """
     n_reduce_tasks = luigi.Parameter()
-
-    priority = -100
 
     def requires(self):
         return {

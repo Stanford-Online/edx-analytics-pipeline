@@ -5,10 +5,10 @@ import argparse
 import json
 import os
 import pipes
-from subprocess import Popen, PIPE
 import sys
-from urlparse import urlparse, parse_qsl
 import uuid
+from subprocess import PIPE, Popen
+from urlparse import parse_qsl, urlparse
 
 STATIC_FILES_PATH = os.path.join(sys.prefix, 'share', 'edx.analytics.tasks')
 EC2_INVENTORY_PATH = os.path.join(STATIC_FILES_PATH, 'ec2.py')
@@ -19,6 +19,7 @@ REMOTE_LOG_DIR = '/var/log/analytics-tasks'
 
 REMOTE_CONFIG_DIR_BASE = 'config'
 REMOTE_CODE_DIR_BASE = 'repo'
+
 
 def main():
     """Parse arguments and run the remote task."""
@@ -57,13 +58,13 @@ def main():
 
     # Push in any secure config values that we got.
     if arguments.secure_config:
-      for config_path in arguments.secure_config:
-        # We construct an absolute path here because the parameter that comes in is simply
-        # relative to the checkout of the configuration repository, but the local scheduler
-        # shouldn't have to know that, which in turn makes --additional-config agnostic of
-        # how we're using it for edX's purposes (with a repository).
-        arguments.launch_task_arguments.append('--additional-config')
-        arguments.launch_task_arguments.append(os.path.join(REMOTE_DATA_DIR, uid, REMOTE_CONFIG_DIR_BASE, config_path))
+        for config_path in arguments.secure_config:
+            # We construct an absolute path here because the parameter that comes in is simply
+            # relative to the checkout of the configuration repository, but the local scheduler
+            # shouldn't have to know that, which in turn makes --additional-config agnostic of
+            # how we're using it for edX's purposes (with a repository).
+            arguments.launch_task_arguments.append('--additional-config')
+            arguments.launch_task_arguments.append(os.path.join(REMOTE_DATA_DIR, uid, REMOTE_CONFIG_DIR_BASE, config_path))
 
     if arguments.vagrant_path:
         parse_vagrant_ssh_config(arguments)
@@ -118,7 +119,7 @@ def run_task_playbook(inventory, arguments, uid):
 
     env_var_string = ' '.join('{0}={1}'.format(k, v) for k, v in env_vars.iteritems())
 
-    command = 'cd {code_dir} && . $HOME/.bashrc && {env_vars}{bg}{data_dir}/venv/bin/launch-task {task_arguments}{end_bg}'.format(
+    command = 'cd {code_dir} && . $HOME/.bashrc && . {data_dir}/venv/bin/activate && {env_vars}{bg}launch-task {task_arguments}{end_bg}'.format(
         env_vars=env_var_string + ' ' if env_var_string else '',
         data_dir=data_dir,
         code_dir=code_dir,

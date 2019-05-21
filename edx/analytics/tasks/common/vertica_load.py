@@ -2,8 +2,9 @@
 Support for loading data into an HP Vertica database.
 """
 
-from collections import namedtuple
 import logging
+import traceback
+from collections import namedtuple
 
 import luigi
 import luigi.configuration
@@ -74,6 +75,12 @@ class VerticaCopyTask(VerticaCopyTaskMixin, luigi.Task):
     """
     required_tasks = None
     output_target = None
+
+    restricted_roles = luigi.ListParameter(
+        config_path={'section': 'vertica-export', 'name': 'restricted_roles'},
+        default=[],
+        description='List of roles to which to provide access when a database column is marked as restricted.'
+    )
 
     def requires(self):
         if self.required_tasks is None:
@@ -415,19 +422,30 @@ class VerticaCopyTask(VerticaCopyTaskMixin, luigi.Task):
                             '(column string, type string) tuples (was %r ...)'
                             % (self.columns[0],))
 
-        with self.input()['insert_source'].open('r') as insert_source_file:
-            log.debug("Running stream copy from source file")
-            cursor.copy(
-                "COPY {schema}.{table} ({cols}) FROM STDIN ENCLOSED BY {enclosed_by} DELIMITER AS {delim} NULL AS {null} DIRECT ABORT ON ERROR NO COMMIT;".format(
-                    schema=self.schema,
-                    table=self.table,
-                    cols=column_names,
-                    delim=self.copy_delimiter,
-                    null=self.copy_null_sequence,
-                    enclosed_by=self.enclosed_by,
-                ),
-                insert_source_file
-            )
+        try:
+            with self.input()['insert_source'].open('r') as insert_source_file:
+                log.debug("Running stream copy from source file")
+                cursor.copy(
+                    "COPY {schema}.{table} ({cols}) FROM STDIN ENCLOSED BY {enclosed_by} DELIMITER AS {delim} NULL AS {null} DIRECT ABORT ON ERROR NO COMMIT;".format(
+                        schema=self.schema,
+                        table=self.table,
+                        cols=column_names,
+                        delim=self.copy_delimiter,
+                        null=self.copy_null_sequence,
+                        enclosed_by=self.enclosed_by,
+                    ),
+                    insert_source_file
+                )
+                log.debug("Finished stream copy from source file")
+        except RuntimeError:
+            # While calling finish on an input target, Luigi throws a RuntimeError exception if the subprocess command
+            # to read the input returns a non-zero return code. As all of the data's been read already, we choose to ignore
+            # this exception.
+            traceback_str = traceback.format_exc()
+            if "self._finish()" in traceback_str:
+                log.debug("Luigi raised RuntimeError while calling _finish on input target.")
+            else:
+                raise
 
     @property
     def restricted_columns(self):
@@ -436,9 +454,8 @@ class VerticaCopyTask(VerticaCopyTaskMixin, luigi.Task):
     def create_access_policies(self, connection):
         cursor = connection.cursor()
         for column in self.restricted_columns:
-            restricted_roles_param = luigi.Parameter(is_list=True, config_path={'section': 'vertica-export', 'name': 'restricted_roles'}, default=[])
-            restricted_roles = ['dbadmin'] + list(restricted_roles_param.value)
-            expression = ' OR '.join(["ENABLED_ROLE('{0}')".format(role) for role in restricted_roles])
+            all_restricted_roles = ['dbadmin'] + list(self.restricted_roles)
+            expression = ' OR '.join(["ENABLED_ROLE('{0}')".format(role) for role in all_restricted_roles])
             statement = """
 CREATE ACCESS POLICY ON {schema}.{table} FOR COLUMN {column}
 CASE WHEN {expression} THEN {column}
@@ -458,7 +475,6 @@ ENABLE;""".format(schema=self.schema, table=self.table, column=column, expressio
                     log.debug('An access policy already exists, so this statement was ignored: {0}'.format(statement))
                 else:
                     raise
-
 
     def run(self):
         """
@@ -591,8 +607,7 @@ class SchemaManagementTask(VerticaCopyTaskMixin, luigi.Task):
 
     date = luigi.DateParameter()
 
-    roles = luigi.Parameter(
-        is_list=True,
+    roles = luigi.ListParameter(
         config_path={'section': 'vertica-export', 'name': 'standard_roles'},
     )
 

@@ -2,12 +2,11 @@
 End to end test of the internal reporting CourseProgramMetadataInsertToMysqlTask.
 """
 
-import os
 import logging
+import os
 
 from edx.analytics.tasks.tests.acceptance import AcceptanceTestCase
 from edx.analytics.tasks.util.url import url_path_join
-
 
 log = logging.getLogger(__name__)
 
@@ -21,12 +20,12 @@ class InternalReportingProgramCourseLoadAcceptanceTest(AcceptanceTestCase):  # p
         super(InternalReportingProgramCourseLoadAcceptanceTest, self).setUp()
         input_location = os.path.join(self.data_dir,
                                       'input',
-                                      'course_catalog.json')
+                                      'course_runs.json')
         output_location = url_path_join(self.warehouse_path,
-                                        'course_catalog_raw',
+                                        'discovery_api_raw',
                                         'dt=' + self.DATE,
-                                        'course_catalog.json')
-        # The furthest upstream dependency is PullCourseCatalogAPIData.
+                                        'course_runs.json')
+        # The furthest upstream dependency is PullDiscoveryCourseRunsAPIData.
         # We fixture the expected output of that Task here.
         self.upload_file(input_location, output_location)
 

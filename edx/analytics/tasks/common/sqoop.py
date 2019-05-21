@@ -6,9 +6,9 @@ import json
 import logging
 
 import luigi
-import luigi.hadoop
-import luigi.hdfs
 import luigi.configuration
+import luigi.contrib.hadoop
+import luigi.contrib.hdfs
 
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
 from edx.analytics.tasks.util.url import ExternalURL, get_target_from_url, url_path_join
@@ -57,7 +57,7 @@ class SqoopImportMixin(object):
         significant=False,
         description='The number of map tasks to ask Sqoop to use.',
     )
-    verbose = luigi.BooleanParameter(
+    verbose = luigi.BoolParameter(
         default=False,
         significant=False,
         description='Print more information while working.',
@@ -70,7 +70,7 @@ class SqoopImportMixin(object):
     )
 
 
-class SqoopImportTask(OverwriteOutputMixin, SqoopImportMixin, luigi.hadoop.BaseHadoopJobTask):
+class SqoopImportTask(OverwriteOutputMixin, SqoopImportMixin, luigi.contrib.hadoop.BaseHadoopJobTask):
     """
     An abstract task that uses Sqoop to read data out of a database and
     writes it to a file in CSV format.
@@ -82,8 +82,7 @@ class SqoopImportTask(OverwriteOutputMixin, SqoopImportMixin, luigi.hadoop.BaseH
     table_name = luigi.Parameter(
         description='The name of the table to import.',
     )
-    columns = luigi.Parameter(
-        is_list=True,
+    columns = luigi.ListParameter(
         default=[],
         description='A list of column names to be included.  Default is to include all columns.'
     )
@@ -93,7 +92,7 @@ class SqoopImportTask(OverwriteOutputMixin, SqoopImportMixin, luigi.hadoop.BaseH
     )
     fields_terminated_by = luigi.Parameter(
         default=None,
-        description='Defines the file separator to use on output.',
+        description='Defines the field separator to use on output.',
     )
     delimiter_replacement = luigi.Parameter(
         default=None,
@@ -112,6 +111,10 @@ class SqoopImportTask(OverwriteOutputMixin, SqoopImportMixin, luigi.hadoop.BaseH
     def metadata_output(self):
         """Return target to which metadata about the task execution can be written."""
         return get_target_from_url(url_path_join(self.destination, METADATA_FILENAME))
+
+    def marker_output(self):
+        """Return target for _SUCCESS marker indicating the task was successfully completed."""
+        return get_target_from_url(url_path_join(self.destination, "_SUCCESS"))
 
     def job_runner(self):
         """Use simple runner that gets args from the job and passes through."""
@@ -181,10 +184,20 @@ class SqoopImportTask(OverwriteOutputMixin, SqoopImportMixin, luigi.hadoop.BaseH
             cred = json.load(credentials_file)
         return cred
 
+    def complete(self):
+        """
+        Wrap Task.complete() to check for metadata and marker file as well as data.
+        """
+        data_complete = super(SqoopImportTask, self).complete()
+        if data_complete and self.marker_output().exists() and self.metadata_output().exists():
+            return True
+        else:
+            return False
+
 
 class SqoopImportFromMysql(SqoopImportTask):
     """
-    An abstract task that uses Sqoop to read data out of a database and writes it to a file in CSV format.
+    An abstract task that uses Sqoop to read data out of a MySQL database and writes it to a file in CSV format.
 
     By default, the output format is defined by meaning of --mysql-delimiters option, which defines defaults used by
     mysqldump tool:
@@ -195,11 +208,11 @@ class SqoopImportFromMysql(SqoopImportTask):
     * delimiters optionally enclosed by single quotes (')
 
     """
-    mysql_delimiters = luigi.BooleanParameter(
+    mysql_delimiters = luigi.BoolParameter(
         default=True,
         description='Use standard mysql delimiters (on by default).',
     )
-    direct = luigi.BooleanParameter(
+    direct = luigi.BoolParameter(
         default=True,
         significant=False,
         description='Use mysqldumpi\'s "direct" mode.  Requires that no set of columns be selected.',
@@ -219,18 +232,36 @@ class SqoopImportFromMysql(SqoopImportTask):
         return arglist
 
 
-class SqoopPasswordTarget(luigi.hdfs.HdfsTarget):
+class SqoopPasswordTarget(luigi.contrib.hdfs.HdfsTarget):
     """Defines a temp file in HDFS to hold password."""
     def __init__(self):
         super(SqoopPasswordTarget, self).__init__(is_tmp=True)
 
 
-class SqoopImportRunner(luigi.hadoop.JobRunner):
+class SqoopImportRunner(luigi.contrib.hadoop.JobRunner):
     """Runs a SqoopImportTask by shelling out to sqoop."""
 
     def run_job(self, job):
         """Runs a SqoopImportTask by shelling out to sqoop."""
+
+        # First remove output if the overwrite flag is set.
         job.remove_output_on_overwrite()
+
+        # Sometimes the job will be run by another workflow running at
+        # the same time, and so this will already become complete.
+        # Sqoop cannot rerun the command line if the output file already
+        # exists -- Hadoop returns a FileAlreadyExistsException error from
+        # org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.checkOutputSpecs().
+        # Just check here first before running, and do nothing if it's already complete.
+        if job.complete():
+            log.warning("Skipping output of %s -- file already exists!", job.marker_output().path)
+            return
+
+        # And so, if it's not complete but there is partial output, it needs to be removed
+        # before Sqoop can be run.
+        if job.output().exists():
+            log.info("Removing existing partial output for task %s", str(job))
+            job.output().remove()
 
         metadata = {
             'start_time': datetime.datetime.utcnow().isoformat()
@@ -242,7 +273,7 @@ class SqoopImportRunner(luigi.hadoop.JobRunner):
             # (using __del__()), but safer to just make sure.
             password_target = SqoopPasswordTarget()
             arglist = job.get_arglist(password_target)
-            luigi.hadoop.run_and_track_hadoop_job(arglist)
+            luigi.contrib.hadoop.run_and_track_hadoop_job(arglist)
         finally:
             password_target.remove()
             metadata['end_time'] = datetime.datetime.utcnow().isoformat()
@@ -252,3 +283,78 @@ class SqoopImportRunner(luigi.hadoop.JobRunner):
             except Exception:
                 log.exception("Unable to dump metadata information.")
                 pass
+
+
+class SqoopImportFromVertica(SqoopImportTask):
+    """
+    An abstract task that uses Sqoop to read data out of a Vertica database and writes it to a file in CSV format.
+
+    * fields delimited by comma
+    * lines delimited by \n
+    * fields optionally enclosed by single quotes (')
+    """
+
+    # Direct is not supported by the Vertica JDBC connector.
+    direct = None
+    # A bug in the Sqoop process with this JDBC connector makes this parameter useless.
+    num_mappers = None
+    schema_name = luigi.Parameter(
+        description='The schema that contains the table being exported.'
+    )
+    timezone_adjusted_column_list = luigi.ListParameter(
+        default=[],
+        description='The list of columns that need to have their times manually adjusted to UTC.'
+    )
+
+    def connection_url(self, cred):
+        """Construct connection URL from provided credentials."""
+        return 'jdbc:vertica://{host}/{database}?searchpath={schema}'.format(
+            host=cred['host'],
+            database=self.database,
+            schema=self.schema_name
+        )
+
+    def import_args(self):
+        if self.columns is None or len(self.columns) == 0:
+            raise RuntimeError('Error Vertica\'s connector requires specific columns listed. No columns were supplied.')
+
+        arglist = [
+            '--target-dir', self.destination,
+            '--driver', 'com.vertica.jdbc.Driver',
+        ]
+
+        # The vertica JBDC client does not handle timestamptz fields or column names that are reserved words
+        column_list = []
+        for column in self.columns:
+            if column in self.timezone_adjusted_column_list:
+                column_list.append('"{source_column}" AT TIME ZONE \'UTC\' AS "{exported_column_name}"'.format(
+                    source_column=column,
+                    exported_column_name=column
+                ))
+            else:
+                column_list.append('"{}"'.format(column))
+
+        query = 'SELECT {cols} FROM {tbl} WHERE $CONDITIONS'.format(cols=','.join(column_list), tbl=self.table_name)
+        arglist.extend(['--query', query])
+
+        # There appears to be a bug in the handling of the --num-mappers and --split-by options. if --num-mappers is
+        # omitted Sqoop terminates with errors.  If --num-mappers is included with any value other than 1 then Sqoop
+        # terminates requiring the --split-by field also be defined.  If --num-mappers is included and a valid
+        # --split-by field is included then in one example Sqoop exported only 1/3 of the proper number of records.
+        # For now disable num_mappers and default the parallelism to 1.
+        arglist.extend(['--num-mappers', '1'])
+
+        if self.verbose:
+            arglist.append('--verbose')
+        if self.null_string is not None:
+            arglist.extend(['--null-string', self.null_string, '--null-non-string', self.null_string])
+        if self.fields_terminated_by is not None:
+            arglist.extend(['--fields-terminated-by', self.fields_terminated_by])
+
+        # At some point we may want to promote this sqoop option to a luigi parameter option
+        arglist.extend(['--optionally-enclosed-by', '\''])
+        if self.delimiter_replacement is not None:
+            arglist.extend(['--hive-delims-replacement', self.delimiter_replacement])
+        arglist.extend(['--lines-terminated-by', '\n'])
+
+        return arglist

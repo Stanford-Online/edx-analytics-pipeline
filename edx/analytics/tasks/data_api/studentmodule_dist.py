@@ -5,17 +5,17 @@ mysql database.
 """
 
 import csv
-from collections import defaultdict
 import logging
+from collections import defaultdict
 
 import luigi
 
 from edx.analytics.tasks.common.mapreduce import MapReduceJobTask, MapReduceJobTaskMixin
-from edx.analytics.tasks.common.sqoop import SqoopImportFromMysql
 from edx.analytics.tasks.common.mysql_load import MysqlInsertTask
+from edx.analytics.tasks.common.sqoop import SqoopImportFromMysql
 from edx.analytics.tasks.export.database_exports import FIELD_SIZE_LIMIT, StudentModuleRecord
 from edx.analytics.tasks.util import csv_util
-from edx.analytics.tasks.util.url import url_path_join, get_target_from_url
+from edx.analytics.tasks.util.url import get_target_from_url, url_path_join
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class HistogramTaskFromSqoopParamsMixin(object):
         config_path={'section': 'database-export', 'name': 'credentials'},
         description='Credentials for the analytics db',
     )
-    sqoop_overwrite = luigi.BooleanParameter(  # prefixed with sqoop for disambiguation
+    sqoop_overwrite = luigi.BoolParameter(  # prefixed with sqoop for disambiguation
         default=False,
         description='Overwrite any existing imports.',
     )
